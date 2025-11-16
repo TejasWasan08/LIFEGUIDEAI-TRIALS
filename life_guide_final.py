@@ -444,7 +444,7 @@ def main():
                     st.session_state.user_preferences["faith"] = faith
                 
                 # Generate AI response
-                model = genai.GenerativeModel("gemini-2.0-flash-exp")
+                model = genai.GenerativeModel("gemini-2.5-flash")
                 prompt = f"""You are a wise, compassionate spiritual AI guide rooted in the {faith} tradition. 
 The seeker comes to you to {path.lower()}. They share: {trouble}
 
