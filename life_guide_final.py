@@ -450,7 +450,8 @@ The seeker comes to you to {path.lower()}. They share: {trouble}
 
 Provide deeply thoughtful, poetic, and comforting spiritual guidance that:
 - Acknowledges their concern with empathy
-- lighter language for the user to understand (write as if someone is helping you out on text messages)
+- lighter language for the user to understand (write as if someone is helping you out on text messages) (you can use casual language)
+- can use hinglish too
 - Draws on wisdom from {faith} teachings if relevant
 - Offers practical spiritual perspective and advice
 - Is warm, non-judgmental, and uplifting
