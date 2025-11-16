@@ -1,9 +1,10 @@
 """
-Life Guide AI - Final Version
+Life Guide AI - Enhanced with Scripture-Based Backgrounds
 Features:
 - Session-based data retention (no login required)
 - In-app notifications and reminders
-- Custom background image support (local files)
+- Custom background image support (local files OR scripture-based)
+- Automatic backgrounds based on user's faith
 - User journey tracking and history
 - Personalized guidance from Gemini AI
 """
@@ -14,6 +15,9 @@ from datetime import datetime
 import time
 import os
 from pathlib import Path
+import requests
+import base64
+from io import BytesIO
 
 # --- PAGE CONFIG ---
 st.set_page_config(
@@ -24,6 +28,47 @@ st.set_page_config(
 
 # --- AI CONFIG ---
 genai.configure(api_key=st.secrets["AI_API_KEY"])
+
+# --- FAITH TO BACKGROUND IMAGE MAPPING ---
+# These are free-to-use images from Unsplash and Pexels
+FAITH_BACKGROUNDS = {
+    "Hinduism": {
+        "url": "https://images.unsplash.com/photo-1599092027257-28b80e0d9a6b?auto=format&fit=crop&w=1200&q=80",
+        "description": "🕉️ Sacred Mandala & Spiritual Patterns"
+    },
+    "Christianity": {
+        "url": "https://images.unsplash.com/photo-1559327615-cd4628902d4a?auto=format&fit=crop&w=1200&q=80",
+        "description": "✝️ Light & Serenity"
+    },
+    "Islam": {
+        "url": "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&w=1200&q=80",
+        "description": "☪️ Islamic Geometric Patterns"
+    },
+    "Buddhism": {
+        "url": "https://images.unsplash.com/photo-1465101162946-4377e57745c3?auto=format&fit=crop&w=1200&q=80",
+        "description": "☸️ Peaceful Zen Garden"
+    },
+    "Judaism": {
+        "url": "https://images.unsplash.com/photo-1606148162298-69e1f7a47c0c?auto=format&fit=crop&w=1200&q=80",
+        "description": "✡️ Star of David & Heritage"
+    },
+    "Sikhism": {
+        "url": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80",
+        "description": "☬ Golden Temple Inspired"
+    },
+    "Spiritualism": {
+        "url": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1200&q=80",
+        "description": "✨ Cosmic & Spiritual Energy"
+    },
+    "Taoism": {
+        "url": "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80",
+        "description": "☯️ Yin-Yang Balance"
+    },
+    "Atheism": {
+        "url": "https://images.unsplash.com/photo-1519904981063-b0cf448d479e?auto=format&fit=crop&w=1200&q=80",
+        "description": "🌌 Universe & Nature"
+    },
+}
 
 # --- SESSION STATE INITIALIZATION ---
 if "user_data" not in st.session_state:
@@ -47,15 +92,16 @@ if "background_image" not in st.session_state:
 if "custom_bg_path" not in st.session_state:
     st.session_state.custom_bg_path = None
 
-# --- BACKGROUND IMAGE SETUP ---
+if "current_bg_type" not in st.session_state:
+    st.session_state.current_bg_type = "default"
+
+# --- BACKGROUND IMAGE SETUP FROM LOCAL ---
 def set_background_from_file(image_path):
     """Set background from local file"""
     try:
         with open(image_path, "rb") as image_file:
-            import base64
             data = base64.b64encode(image_file.read()).decode()
             
-        # Get file extension
         file_ext = Path(image_path).suffix.lower()
         if file_ext in ['.jpg', '.jpeg']:
             mime_type = "image/jpeg"
@@ -89,7 +135,52 @@ def set_background_from_file(image_path):
         </style>
         """
         st.markdown(css, unsafe_allow_html=True)
+        st.session_state.current_bg_type = "custom"
         return True
+    except Exception as e:
+        st.warning(f"Error loading background: {str(e)}")
+        return False
+
+# --- BACKGROUND IMAGE SETUP FROM URL (Scripture-based) ---
+def set_background_from_url(image_url, faith_name="Unknown"):
+    """Set background from URL (scripture/faith based)"""
+    try:
+        with st.spinner(f"🌟 Loading {faith_name} scripture background..."):
+            response = requests.get(image_url, timeout=10)
+            
+        if response.status_code == 200:
+            data = base64.b64encode(response.content).decode()
+            mime_type = response.headers.get('content-type', 'image/jpeg')
+            
+            css = f"""
+            <style>
+            [data-testid="stAppViewContainer"] {{
+                background-image: url("data:{mime_type};base64,{data}");
+                background-size: cover;
+                background-position: center;
+                background-attachment: fixed;
+            }}
+            
+            [data-testid="stAppViewContainer"]::before {{
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: -1;
+                pointer-events: none;
+            }}
+            </style>
+            """
+            st.markdown(css, unsafe_allow_html=True)
+            st.session_state.current_bg_type = "faith"
+            return True
+        else:
+            st.warning("Failed to load background image from URL")
+            return False
+            
     except Exception as e:
         st.warning(f"Error loading background: {str(e)}")
         return False
@@ -97,12 +188,10 @@ def set_background_from_file(image_path):
 # --- MAIN STYLING ---
 st.markdown("""
 <style>
-/* Main container styling */
 [data-testid="stAppViewContainer"] > .main {
     background: transparent !important;
 }
 
-/* Centered title + subtitle */
 h1 {
     text-align: center;
     color: #FFD700;
@@ -131,13 +220,11 @@ h4.subtitle {
     color: #E6E6FA;
 }
 
-/* Text styling with background for readability */
 p, label, span, div {
     color: #F0F0F0 !important;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
 }
 
-/* Input fields styling */
 textarea, input[type="text"], input[type="time"], select {
     background-color: rgba(255, 255, 255, 0.1) !important;
     border: 2px solid rgba(255, 215, 0, 0.4) !important;
@@ -152,7 +239,6 @@ textarea:focus, input:focus, select:focus {
     background-color: rgba(255, 255, 255, 0.15) !important;
 }
 
-/* Button styling */
 button[kind="primary"] {
     background: linear-gradient(90deg, #ffb400, #ffdd55) !important;
     color: #000000 !important;
@@ -170,31 +256,17 @@ button[kind="primary"]:hover {
     transform: scale(1.02);
 }
 
-/* Checkbox and radio styling */
-[role="checkbox"], [role="radio"] {
-    color: #FFD700 !important;
-}
-
-/* Sidebar styling */
 [data-testid="stSidebar"] {
     background-color: rgba(0, 0, 0, 0.6) !important;
     backdrop-filter: blur(5px);
 }
 
-/* Expander styling */
 [data-testid="stExpander"] {
     background-color: rgba(255, 255, 255, 0.05) !important;
     border: 1px solid rgba(255, 215, 0, 0.2) !important;
     border-radius: 8px !important;
 }
 
-/* Messages and alerts */
-.stSuccess, .stInfo, .stWarning, .stError {
-    border-radius: 10px !important;
-    padding: 12px !important;
-}
-
-/* Divider */
 hr {
     border-color: rgba(255, 215, 0, 0.3) !important;
 }
@@ -227,8 +299,7 @@ def check_and_show_reminder():
         "🙏 May wisdom and compassion guide your path today.",
     ]
     
-    # Show reminder around specific hours (customize as needed)
-    reminder_hours = [9, 12, 15, 18, 21]  # 9 AM, 12 PM, 3 PM, 6 PM, 9 PM
+    reminder_hours = [9, 12, 15, 18, 21]
     
     if current_hour in reminder_hours and not st.session_state.reminder_triggered:
         import random
@@ -241,21 +312,41 @@ def check_and_show_reminder():
 
 # --- BACKGROUND CUSTOMIZATION SIDEBAR ---
 def show_background_settings():
-    """Show background customization in sidebar"""
+    """Show background customization in sidebar with scripture option"""
     st.sidebar.subheader("🎨 Customize Background")
     
     bg_option = st.sidebar.radio(
         "Choose background:",
-        ["Default (Dark)", "Upload Image", "Local File Path"]
+        ["Default (Dark)", "Scripture Theme", "Upload Image", "Local File Path"]
     )
     
-    if bg_option == "Upload Image":
+    if bg_option == "Scripture Theme":
+        st.sidebar.write("**🕉️ Select Your Faith:**")
+        
+        faith_list = list(FAITH_BACKGROUNDS.keys())
+        selected_faith = st.sidebar.selectbox(
+            "Choose a faith:",
+            faith_list,
+            index=0
+        )
+        
+        faith_info = FAITH_BACKGROUNDS[selected_faith]
+        st.sidebar.write(f"_{faith_info['description']}_")
+        
+        if st.sidebar.button("📿 Apply Scripture Background", use_container_width=True):
+            bg_url = faith_info['url']
+            if set_background_from_url(bg_url, selected_faith):
+                show_notification(f"Scripture background applied!", "success", "📿")
+                st.session_state.user_preferences["faith"] = selected_faith
+            else:
+                show_notification("Failed to load scripture background", "error", "❌")
+    
+    elif bg_option == "Upload Image":
         uploaded_file = st.sidebar.file_uploader(
             "Choose an image file",
             type=["jpg", "jpeg", "png", "gif"]
         )
         if uploaded_file is not None:
-            # Save uploaded file temporarily
             temp_path = f"temp_bg_{uploaded_file.name}"
             with open(temp_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
@@ -281,9 +372,10 @@ def show_background_settings():
                 st.warning(f"File not found: {local_path}")
                 st.session_state.custom_bg_path = None
     
-    else:  # Default
+    else:
         st.session_state.custom_bg_path = None
-        # Default dark background is already set in CSS
+        st.session_state.current_bg_type = "default"
+        st.sidebar.caption("Dark theme - Default appearance")
 
 # --- HISTORY DISPLAY ---
 def show_user_history():
@@ -348,7 +440,6 @@ def show_reminder_settings():
         if reminder_frequency == "Custom":
             st.sidebar.write("_Reminders will show at: 9 AM, 12 PM, 3 PM, 6 PM, 9 PM_")
     
-    # Show notification count
     if st.session_state.notification_counter > 0:
         st.sidebar.caption(
             f"📬 Notifications shown: {st.session_state.notification_counter}"
@@ -356,17 +447,14 @@ def show_reminder_settings():
 
 # --- MAIN APP ---
 def main():
-    # Title
     st.markdown("<h1>🌙 Life Guide AI</h1>", unsafe_allow_html=True)
     st.markdown(
         "<h4 class='subtitle'>By TejasWasan08 | Your Spiritual Companion</h4>",
         unsafe_allow_html=True
     )
     
-    # Check for reminder
     check_and_show_reminder()
     
-    # Sidebar setup
     with st.sidebar:
         show_background_settings()
         st.divider()
@@ -376,13 +464,11 @@ def main():
         st.divider()
         show_user_history()
     
-    # Main content area
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
         st.write("### 🙏 Share Your Spiritual Journey")
         
-        # Input section
         faith = st.text_input(
             "🕊️ Your Faith or Philosophy:",
             value=st.session_state.user_preferences.get("faith", ""),
@@ -404,10 +490,9 @@ def main():
             key="trouble_input"
         )
         
-        # Save preferences option
         save_prefs = st.checkbox("Remember my faith preference", value=True)
         
-        col_btn1, col_btn2 = st.columns(2)
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
         
         with col_btn1:
             seek_guidance = st.button(
@@ -417,11 +502,29 @@ def main():
             )
         
         with col_btn2:
+            auto_bg = st.button(
+                "🕉️ Scripture BG",
+                use_container_width=True,
+                key="auto_bg_btn",
+                help="Auto-apply background based on your faith"
+            )
+        
+        with col_btn3:
             clear_form = st.button(
-                "🗑️ Clear Form",
+                "🗑️ Clear",
                 use_container_width=True,
                 key="clear_btn"
             )
+        
+        if auto_bg and faith:
+            for faith_key in FAITH_BACKGROUNDS.keys():
+                if faith.lower() in faith_key.lower() or faith_key.lower() in faith.lower():
+                    bg_url = FAITH_BACKGROUNDS[faith_key]['url']
+                    if set_background_from_url(bg_url, faith_key):
+                        show_notification(f"Scripture background applied for {faith_key}!", "success", "📿")
+                    break
+            else:
+                st.info(f"💡 Available faiths: {', '.join(FAITH_BACKGROUNDS.keys())}")
         
         if clear_form:
             st.session_state.faith_input = ""
@@ -429,7 +532,6 @@ def main():
             show_notification("Form cleared!", "info", "✨")
             st.rerun()
         
-        # Main guidance logic
         if seek_guidance:
             if not faith or not trouble:
                 show_notification(
@@ -439,11 +541,9 @@ def main():
                 )
                 st.warning("🕊️ Please share your faith and your concern to receive personalized guidance.")
             else:
-                # Update preferences if checked
                 if save_prefs:
                     st.session_state.user_preferences["faith"] = faith
                 
-                # Generate AI response
                 model = genai.GenerativeModel("gemini-2.5-flash")
                 prompt = f"""You are a wise, compassionate spiritual AI guide rooted in the {faith} tradition. 
 The seeker comes to you to {path.lower()}. They share: {trouble}
@@ -459,6 +559,7 @@ Provide deeply thoughtful, poetic, and comforting spiritual guidance that:
 - Helps them see their situation with clarity and hope
 - Try to correlate the problem with their life and provide a solution from {faith} scripture
 
+
 Keep the response to 3-4 paragraphs."""
                 
                 try:
@@ -466,7 +567,6 @@ Keep the response to 3-4 paragraphs."""
                         response = model.generate_content(prompt)
                         ai_response = response.text
                     
-                    # Display response with styling
                     st.divider()
                     st.markdown("### ✨ Divine Whisper")
                     st.markdown(
@@ -486,7 +586,6 @@ Keep the response to 3-4 paragraphs."""
                     )
                     st.divider()
                     
-                    # Save to user data
                     st.session_state.user_data.append({
                         "faith": faith,
                         "path": path,
@@ -495,7 +594,6 @@ Keep the response to 3-4 paragraphs."""
                         "timestamp": datetime.now().isoformat()
                     })
                     
-                    # Show notifications
                     show_notification("Guidance received and saved!", "success", "✨")
                     time.sleep(0.5)
                     st.balloons()
@@ -508,15 +606,13 @@ Keep the response to 3-4 paragraphs."""
                     )
                     st.error(f"The spirits are troubled: {str(e)}")
     
-    # Footer
     st.divider()
     col_f1, col_f2, col_f3 = st.columns(3)
     with col_f2:
         st.caption(
             f"🌍 Session active | 📊 Queries: {len(st.session_state.user_data)} | "
-            f"💬 Notifications: {st.session_state.notification_counter}"
+            f"Background: {st.session_state.current_bg_type}"
         )
 
-# --- RUN APP ---
 if __name__ == "__main__":
     main()
