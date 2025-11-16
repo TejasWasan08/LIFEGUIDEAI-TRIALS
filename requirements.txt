@@ -1,6 +1,2 @@
 streamlit
-google-generativeai
-datetime
-time
-os
-pathlib
+google-generativ
