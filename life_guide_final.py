@@ -455,6 +455,7 @@ Provide deeply thoughtful, poetic, and comforting spiritual guidance that:
 - Is warm, non-judgmental, and uplifting
 - Uses a calm, reflective tone
 - Helps them see their situation with clarity and hope
+- Try to correlate the problem with their life and provide a solution from {faith} scripture
 
 Keep the response to 3-4 paragraphs."""
                 
